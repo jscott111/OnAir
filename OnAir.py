@@ -12,6 +12,21 @@ from googleapiclient.discovery import build
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
+def fetchEvents():
+  now = datetime.datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC time
+  print("Getting the upcoming 5 events")
+  events_result = (
+  service.events()
+  .list(
+    calendarId="js@heyorca.com",
+    timeMin=now,
+    maxResults=5,
+    singleEvents=True,
+    orderBy="startTime",
+  )
+  .execute()
+  )
+  return events_result.get("items", [])
 
 def main():
   sign = LED(26)
@@ -49,20 +64,7 @@ def main():
     service = build("calendar", "v3", credentials=creds)
 
     # Call the Calendar API
-    now = datetime.datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC time
-    print("Getting the upcoming 5 events")
-    events_result = (
-        service.events()
-        .list(
-            calendarId="js@heyorca.com",
-            timeMin=now,
-            maxResults=5,
-            singleEvents=True,
-            orderBy="startTime",
-        )
-        .execute()
-    )
-    events = events_result.get("items", [])
+    events = fetchEvents()
 
     if not events:
       print("No upcoming events found.")
