@@ -2,6 +2,7 @@ from gpiozero import LED
 import time
 import datetime
 import os.path
+import config
 
 from googleapiclient.errors import HttpError
 from google.auth.transport.requests import Request
@@ -30,7 +31,7 @@ def authenticate():
       creds = flow.run_local_server(
         host='localhost',
         port=8080,
-        open_browser=True,
+        open_browser=config.openBrowserOnAuthentication,
         success_message='Success! You may now close the browser!'
       )
     # Save the credentials for the next run
@@ -40,13 +41,13 @@ def authenticate():
 
 def fetchEvents(service):
   now = datetime.datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC time
-  nowPlus12 = (datetime.datetime.utcnow() + datetime.timedelta(hours=12)).isoformat() + "Z" # 12 hours after the minimum time
+  nowPlus12 = (datetime.datetime.utcnow() + datetime.timedelta(hours=config.numberOfHoursAhead)).isoformat() + "Z" # 12 hours after the minimum time
 
   print("Getting the upcoming events for the next 12 hours")
   events_result = (
     service.events()
       .list(
-         calendarId="js@heyorca.com",
+         calendarId=config.calendarId,
          timeMin=now,
          timeMax=nowPlus12,
          singleEvents=True,
@@ -57,20 +58,18 @@ def fetchEvents(service):
   return events_result.get("items", [])
 
 def main():
-  sign = LED(26)
-  sign.on()
-  time.sleep(2)
-  sign.off()
-  """Shows basic usage of the Google Calendar API.
-  Prints the start and name of the next 10 events on the user's calendar.
-  """
+  if (config.testLEDOnStartup):
+    sign = LED(config.LEDPin)
+    sign.on()
+    time.sleep(2)
+    sign.off()
+  
   creds = authenticate()
 
   try:
     service = build("calendar", "v3", credentials=creds)
 
     # Call the Calendar API
-    print("Refreshing the upcoming events for the next 12 hours")
     events = fetchEvents(service)
 
     # Prints the start and name of the next 10 events
@@ -91,7 +90,7 @@ def main():
       else: sign.off()
 
       count += 1
-      if(count == 36):
+      if(count == config.fetchingFrequencyHours * 36):
         events = fetchEvents(service)
         count = 0
 
