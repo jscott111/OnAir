@@ -12,30 +12,7 @@ from googleapiclient.discovery import build
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
-def fetchEvents():
-  now = datetime.datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC time
-  print("Getting the upcoming 5 events")
-  events_result = (
-  service.events()
-  .list(
-    calendarId="js@heyorca.com",
-    timeMin=now,
-    maxResults=5,
-    singleEvents=True,
-    orderBy="startTime",
-  )
-  .execute()
-  )
-  return events_result.get("items", [])
-
-def main():
-  sign = LED(26)
-  sign.on()
-  time.sleep(2)
-  sign.off()
-  """Shows basic usage of the Google Calendar API.
-  Prints the start and name of the next 10 events on the user's calendar.
-  """
+def authenticate():
   creds = None
   # The file token.json stores the user's access and refresh tokens, and is
   # created automatically when the authorization flow completes for the first
@@ -51,32 +28,58 @@ def main():
           "credentials.json", SCOPES
       )
       creds = flow.run_local_server(
-	host='localhost',
-	port=8080,
-	open_browser=False,
-	success_message='Success! You may now close the browser!'
-)
+        host='localhost',
+        port=8080,
+        open_browser=True,
+        success_message='Success! You may now close the browser!'
+      )
     # Save the credentials for the next run
     with open("token.json", "w") as token:
       token.write(creds.to_json())
+  return creds
+
+def fetchEvents(service):
+  now = datetime.datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC time
+  nowPlus12 = (datetime.datetime.utcnow() + datetime.timedelta(hours=12)).isoformat() + "Z" # 12 hours after the minimum time
+
+  print("Getting the upcoming events for the next 12 hours")
+  events_result = (
+    service.events()
+      .list(
+         calendarId="js@heyorca.com",
+         timeMin=now,
+         timeMax=nowPlus12,
+         singleEvents=True,
+         orderBy="startTime",
+      )
+    .execute()
+  )
+  return events_result.get("items", [])
+
+def main():
+  sign = LED(26)
+  sign.on()
+  time.sleep(2)
+  sign.off()
+  """Shows basic usage of the Google Calendar API.
+  Prints the start and name of the next 10 events on the user's calendar.
+  """
+  creds = authenticate()
 
   try:
     service = build("calendar", "v3", credentials=creds)
 
     # Call the Calendar API
-    events = fetchEvents()
-
-    if not events:
-      print("No upcoming events found.")
-      return
+    print("Refreshing the upcoming events for the next 12 hours")
+    events = fetchEvents(service)
 
     # Prints the start and name of the next 10 events
     for event in events:
       # start = event["start"].get("dateTime", event["start"].get("time"))
       print(event["start"].get("dateTime"))
 
+    count = 0
     while True:
-      print("Checking")
       inMeeting = False
 
       for event in events:
@@ -86,6 +89,12 @@ def main():
 
       if (inMeeting): sign.on()
       else: sign.off()
+
+      count += 1
+      if(count == 36):
+        events = fetchEvents(service)
+        count = 0
+
       time.sleep(10)
   except HttpError as error:
     print(f"An error occurred: {error}")
