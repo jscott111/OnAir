@@ -1,3 +1,6 @@
+import warnings
+warnings.simplefilter('ignore')
+
 from gpiozero import LED
 import time
 import datetime
