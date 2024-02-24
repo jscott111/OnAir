@@ -55,5 +55,7 @@ Once that completes and you see `Success! You may now close the browser!`, you c
 
 There you go, you did it!
 
+All of the output can be found in the `std.log` file
+
 If you have any questions or run into some trouble, please contact me and I will do my best to help you set it up!
 

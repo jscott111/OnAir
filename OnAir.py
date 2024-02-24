@@ -1,6 +1,8 @@
 import warnings
 warnings.simplefilter('ignore')
 
+import logging
+
 from gpiozero import LED
 import time
 import datetime
@@ -46,7 +48,7 @@ def fetchEvents(service):
   now = datetime.datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC time
   nowPlus12 = (datetime.datetime.utcnow() + datetime.timedelta(hours=config.numberOfHoursAhead)).isoformat() + "Z" # 12 hours after the minimum time
 
-  print("Getting the upcoming events for the next 12 hours")
+  logging.warning("Getting the upcoming events for the next 12 hours")
   events_result = (
     service.events()
       .list(
@@ -58,13 +60,19 @@ def fetchEvents(service):
       )
     .execute()
   )
+
   return events_result.get("items", [])
 
 def main():
+  logging.basicConfig(filename='std.log', format='%(asctime)s - %(message)s')
+
+  logging.warning('***Program started***')
+
   if (config.testLEDOnStartup):
+    logging.info('Testing the LED')
     sign = LED(config.LEDPin)
     sign.on()
-    time.sleep(2)
+    time.sleep(1)
     sign.off()
   
   creds = authenticate()
@@ -75,10 +83,13 @@ def main():
     # Call the Calendar API
     events = fetchEvents(service)
 
+    if not events:
+      logging.warning("No upcoming events found")
+
     # Prints the start and name of the next 10 events
     for event in events:
       # start = event["start"].get("dateTime", event["start"].get("time"))
-      print(event["start"].get("dateTime"))
+      logging.warning('Upcoming event start time: ' + event["start"].get("dateTime"))
 
     count = 0
     while True:
@@ -87,6 +98,7 @@ def main():
       for event in events:
         if (datetime.datetime.fromisoformat(event["start"].get("dateTime")) < datetime.datetime.now(datetime.timezone.utc) and
         datetime.datetime.fromisoformat(event["end"].get("dateTime")) > datetime.datetime.now(datetime.timezone.utc)):
+          logging.warning('There is currently a meeting')
           inMeeting = True
 
       if (inMeeting): sign.on()
@@ -99,7 +111,7 @@ def main():
 
       time.sleep(10)
   except HttpError as error:
-    print(f"An error occurred: {error}")
+    logging.error(f"An error occurred: {error}")
 
 
 if __name__ == "__main__":
